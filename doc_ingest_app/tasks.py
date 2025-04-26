@@ -7,7 +7,7 @@ from sqlalchemy import URL, select
 from sqlalchemy.engine import create_engine
 from sqlalchemy.orm import Session
 
-from .models.sql_models import Organization, User, Conversation, Document, Chunks, Base
+from .models.sql_models import Organization, User, Document, Chunks, Base
 import os
 
 celery = Celery(

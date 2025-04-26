@@ -1,12 +1,12 @@
+import uuid
+
 from fastapi import APIRouter
 from typing import Annotated, List
-import uuid
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 
 from ..models.sql_models import Organization, User
 from ..models.api_models import UserCreate, UserResponse, UserUpdate
-
 from ..dependencies import get_user, SessionDep
 
 router = APIRouter(

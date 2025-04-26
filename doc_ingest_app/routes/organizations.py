@@ -2,6 +2,7 @@ from typing import Annotated, List
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+
 from ..models.sql_models import Organization, User
 from ..models.api_models import OrganizationCreate, OrganizationResponse, OrganizationUpdate, OrganizationAddUsers
 

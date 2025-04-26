@@ -1,9 +1,8 @@
 from enum import Enum
 from typing import List
-from fastapi import File, UploadFile
 from pydantic import BaseModel, Field
 from uuid import UUID
-from .sql_models import User, Organization
+from .sql_models import User
 
 class User(BaseModel):
     id: UUID

@@ -3,6 +3,7 @@ from fastapi import Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.engine import URL, create_engine
 from sqlalchemy.orm import Session, joinedload
+
 from .models.sql_models import Organization, User
 
 

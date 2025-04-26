@@ -1,7 +1,5 @@
 from typing import Annotated, List
-import uuid
 from fastapi import APIRouter, Depends, HTTPException
-
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import select
 

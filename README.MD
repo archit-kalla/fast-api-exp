@@ -10,6 +10,10 @@ docker run -d -p 5432:5432 --name postgres_pgvec -e POSTGRES_PASSWORD=admin pgve
 docker pull redis 
 
 docker run -d -p 6379:6379 redis  
+
+docker pull localstack/localstack
+
+docker run --rm -it -p 4566:4566 -p 4510-4559:4510-4559 -d localstack/localstack
 ```
 
 ## run app

@@ -12,6 +12,4 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             return JSONResponse(
                 status_code=500,
                 content={"detail": "An unexpected error occurred.",
-                         "error": str(exc) if str(exc) else "Unknown error"},
-
-            )
+                         "error": str(exc) if str(exc) else "Unknown error"})

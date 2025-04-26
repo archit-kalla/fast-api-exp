@@ -1,11 +1,18 @@
 import uuid
 from celery import Celery
 import time
+from io import BytesIO
 
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import URL, select
 from sqlalchemy.engine import create_engine
 from sqlalchemy.orm import Session
+from botocore.exceptions import BotoCoreError, ClientError
+from boto3.session import Session as BotoSession
+
+from uuid import UUID
+
+from doc_ingest_app.models.api_models import OwnershipType
 
 from .models.sql_models import Organization, User, Document, Chunks, Base
 import os
@@ -30,16 +37,31 @@ embedding_dim = 384
 # Initialize the embedding model
 embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
-#we want atomic transactions because we want to ensure that if any part of the process fails, the entire transaction is rolled back
+# S3 Configuration
+S3_BUCKET_NAME = "documents"
+S3_ENDPOINT_URL = "http://localhost:4566"
+AWS_ACCESS_KEY_ID = "test"  # Default LocalStack credentials
+AWS_SECRET_ACCESS_KEY = "test"
+
+# Initialize Boto3 S3 client
+s3_client = BotoSession(
+    aws_access_key_id=AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+).client("s3", endpoint_url=S3_ENDPOINT_URL)
+
+# We want atomic transactions because we want to ensure that if any part of the process fails, the entire transaction is rolled back
 @celery.task
-def proccess_file(file_name, owner_id, owner_type, file_id):
+def proccess_file(file_name: str, owner_id: UUID, owner_type: OwnershipType, file_id: UUID):
     """
     Process the file and return the result.
     """
-    # Ensure the file exists
-    if not os.path.exists("user_files/" + file_name):
-        raise FileNotFoundError(f"File {file_name} not found")
-    
+    # Download the file from S3
+    try:
+        s3_object = s3_client.get_object(Bucket=S3_BUCKET_NAME, Key=str(file_id))
+        file_content = s3_object["Body"].read()  # Read the file content as bytes
+    except (BotoCoreError, ClientError) as e:
+        raise FileNotFoundError(f"Failed to download file {file_name} from S3: {str(e)}")
+
     # Use a context manager for session management
     with Session(engine) as session:
         with session.begin():
@@ -51,11 +73,11 @@ def proccess_file(file_name, owner_id, owner_type, file_id):
                 raise FileNotFoundError(f"File {file_name} with id {file_id} not found in database")
             
             # Ensure the owner_id is in the database
-            if owner_type == "user":
+            if owner_type == OwnershipType.user:
                 owner = session.scalar(
                     select(User).where(User.id == owner_id)
                 )
-            elif owner_type == "organization":
+            elif owner_type == OwnershipType.organization:
                 owner = session.scalar(
                     select(Organization).where(Organization.id == owner_id)
                 )
@@ -67,13 +89,13 @@ def proccess_file(file_name, owner_id, owner_type, file_id):
             # Chunk the file
             chunk_size = 1024
             chunks = []
-            with open("user_files/" + file_name, "r", encoding="utf-8") as f:
-                while True:
-                    chunk = f.read(chunk_size)
-                    if not chunk:
-                        break
-                    # Process the chunk
-                    chunks.append(chunk)  # No need for str() conversion
+            file_stream = BytesIO(file_content)  # Create a file-like object from the downloaded content
+            while True:
+                chunk = file_stream.read(chunk_size).decode("utf-8")  # Decode bytes to string
+                if not chunk:
+                    break
+                # Process the chunk
+                chunks.append(chunk)
 
             # Create embeddings for the chunks and associate them
             for chunk in chunks:

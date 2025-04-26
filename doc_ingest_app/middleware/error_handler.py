@@ -9,6 +9,10 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             return response
         except Exception as exc:
             # Log the exception here if needed
+            if hasattr(request.state, "session"):
+                db_session = request.state.session
+                if db_session:
+                    db_session.rollback()
             return JSONResponse(
                 status_code=500,
                 content={"detail": "An unexpected error occurred.",

@@ -24,7 +24,7 @@ class UserResponse(BaseModel):
     id: UUID
     username: str
     email: str
-    organization_id: str | None
+    organization_id: UUID | None
 
 class OwnershipType(str, Enum):
     user = "user"

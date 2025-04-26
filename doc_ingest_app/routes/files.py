@@ -27,7 +27,7 @@ router = APIRouter(
     tags=["Files"]
 )
 
-
+#files of same name are not allowed to be uploaded for simplicity
 @router.post("/{owner_id}/uploadFile", status_code=status.HTTP_201_CREATED)
 async def upload_file(owner_id: UUID, owner_type: OwnershipType, session: SessionDep, file: UploadFile = File(...)):
     '''

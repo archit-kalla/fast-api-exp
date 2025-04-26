@@ -13,10 +13,14 @@ app.include_router(users.router)
 app.include_router(search.router)
 app.include_router(tasks.router)
 app.include_router(files.router)
-app.add_middleware(ErrorHandlingMiddleware)
+# app.add_middleware(ErrorHandlingMiddleware)
 
 @app.exception_handler(SQLAlchemyError)
 async def sqlalchemy_exception_handler(request, exc):
+    if hasattr(request.state, "session"):
+        db_session = request.state.session
+        if db_session:
+            db_session.rollback()
     return JSONResponse(
         status_code=500,
         content={"detail": "A database error occurred.",
@@ -25,6 +29,10 @@ async def sqlalchemy_exception_handler(request, exc):
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request, exc):
+    if hasattr(request.state, "session"):
+        db_session = request.state.session
+        if db_session:
+            db_session.rollback()
     return JSONResponse(
         status_code=500,
         content={"detail": "An unexpected error occurred.",

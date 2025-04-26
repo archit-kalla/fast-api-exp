@@ -21,6 +21,7 @@ async def create_user(user: UserCreate, session: SessionDep) -> UserResponse:
     )
     if existing_user:
         raise HTTPException(status_code=400, detail="User already exists")
+    
     # Check if organization exists
     if user.organization_id:
         existing_org = session.scalar(
@@ -35,7 +36,7 @@ async def create_user(user: UserCreate, session: SessionDep) -> UserResponse:
         organization_id=user.organization_id
     )
     session.add(new_user)
-    session.commit()  # Commit the transaction
+    session.commit()
     return new_user
 
 @router.get("/{user_id}")
@@ -51,7 +52,7 @@ async def update_user(existing_user: Annotated[User, Depends(get_user)], user_da
     if user_data.organization_id:
         existing_user.organization_id = user_data.organization_id
     session.refresh(existing_user)
-    session.commit()  # Commit the transaction
+    session.commit() 
     return existing_user
 
 @router.get("/")

@@ -5,7 +5,7 @@
 ```bash
 docker pull pgvector/pgvector:pg17
 
-docker run -d -p 5432:5432 --name postgres_pgvec -e POSTGRES_PASSWORD=admin sha256:438a79880cd2559658c49ac807386179c036204411ceff761c98b947628aabdb
+docker run -d -p 5432:5432 --name postgres_pgvec -e POSTGRES_PASSWORD=admin pgvector/pgvector:pg17
 
 docker pull redis 
 

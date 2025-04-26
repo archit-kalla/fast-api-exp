@@ -10,7 +10,6 @@ class User(BaseModel):
     email: str
     organization_id: UUID | None
 
-
 class UserCreate(BaseModel):
     username: str
     email: str
@@ -30,7 +29,6 @@ class UserResponse(BaseModel):
 class OwnershipType(str, Enum):
     user = "user"
     organization = "organization"
-
 
 class OrganizationCreate(BaseModel):
     name: str

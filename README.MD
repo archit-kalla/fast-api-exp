@@ -18,9 +18,13 @@ docker run --rm -it -p 4566:4566 -p 4510-4559:4510-4559 -d localstack/localstack
 
 ## run app
 
+- requires `awscli` and `awslocal` to be installed
+
 ```bash
 fastapi dev doc_ingest_app/main.py     
 
 celery -A doc_ingest_app.tasks worker --loglevel=info --pool=solo
+
+awslocal s3 mb s3://documents 
 
 ```

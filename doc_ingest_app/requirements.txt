@@ -1,0 +1,8 @@
+fastapi
+pydantic
+sqlalchemy
+psycopg2-binary
+pgvector
+celery
+redis
+uvicorn

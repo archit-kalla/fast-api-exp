@@ -6,9 +6,9 @@ from uuid import UUID
 import uuid
 
 
-from ..dependencies import SessionDep, UserDep, ConversationDep
+from ..dependencies import SessionDep, UserDep, ConversationDep, validate_document_ids
 from ..models.sql_models import Document, User, Conversation, Message
-from ..models.api_models import ConversationEntryCreate, ConversationEntryResponse, ConversationResponse, ConversationUpdate, ConversationUpdateResponse
+from ..models.api_models import ConversationEntryCreate, ConversationEntryResponse, ConversationResponse, ConversationUpdate, ConversationUpdateResponse, MessageResponse
 
 router = APIRouter(
     prefix="/conversations",
@@ -47,6 +47,40 @@ async def start_conversation(user: UserDep,
         document_ids=new_conversation.document_ids
     )
 
+@router.post("/{conversation_id}/message")
+async def add_message_to_conversation(conversation: ConversationDep,
+                                        session: SessionDep,
+                                        message_create: ConversationEntryCreate,
+                                        ) -> MessageResponse:
+    
+
+    conversation = session.merge(conversation)
+    # check if user is the owner of the conversation
+    # if conversation.user_id != [somethinghere].user_id:
+    #     raise HTTPException(status_code=403, detail="User not authorized to add message to this conversation")
+    
+    # add document ids to conversation
+    if message_create.document_ids:
+        await validate_document_ids(
+            document_ids=message_create.document_ids,
+            conversation=conversation,
+            session=session
+        )
+        conversation.document_ids = message_create.document_ids
+
+    #add message to conversation
+    new_message = Message(
+        id=uuid.uuid4(),
+        conversation_id=conversation.id,
+        query=message_create.query,
+        created_at=datetime.now(timezone.utc)
+    )   
+    session.add(new_message)
+    session.commit()
+    session.refresh(new_message)
+    return new_message
+
+
 @router.put("/{conversation_id}")
 async def update_conversation(conversation: ConversationDep,
                                         session: SessionDep,
@@ -59,23 +93,14 @@ async def update_conversation(conversation: ConversationDep,
     conversation = session.merge(conversation)
 
     #check if the documents are already in the conversation
-    if conversation.document_ids:
-        doc_ids = set(conversation.document_ids)
-        new_doc_ids = set(conversation_update.document_ids)
-        same_doc_ids = doc_ids.intersection(new_doc_ids)
-        if same_doc_ids:
-            raise HTTPException(status_code=400, detail="Documents already in conversation, ids: {same_doc_ids}")
-        # Check if the new document IDs exist
-        for doc_id in conversation_update.document_ids: 
-            if not session.scalar(
-                select(Document).where(Document.id == doc_id and (
-                    Document.user_id == conversation.user_id or 
-                    Document.organization_id == conversation.user.organization_id
-                    ))
-                ):
-                raise HTTPException(status_code=404, detail=f"Document with id {doc_id} not found, or not associated with the user or organization")
-    # Update the conversation with new document IDs
-    conversation.document_ids = conversation_update.document_ids
+    if conversation_update.document_ids:
+        await validate_document_ids(
+            document_ids=conversation_update.document_ids,
+            conversation=conversation,
+            session=session
+        )
+        conversation.document_ids = conversation_update.document_ids
+
     #update conversation title if provided
     if conversation_update.title:
         conversation.title = conversation_update.title  

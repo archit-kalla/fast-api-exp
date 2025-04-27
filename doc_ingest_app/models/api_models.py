@@ -74,7 +74,7 @@ class MessageResponse(MessageBase):
 
 # Base Conversation Model
 class ConversationBase(BaseModel):
-    document_ids: Optional[List[UUID]]
+    document_ids: Optional[List[UUID]] = None
 
 
 class ConversationEntryCreate(ConversationBase):
@@ -82,9 +82,8 @@ class ConversationEntryCreate(ConversationBase):
 
 
 class ConversationUpdate(BaseModel):
-    document_ids: List[UUID]
-    title: Optional[str]
-
+    document_ids: Optional[List[UUID]] = None
+    title: Optional[str] = None
 
 class ConversationUpdateResponse(BaseModel):
     id: UUID
@@ -117,3 +116,13 @@ class SearchResponse(BaseModel):
     document_id: UUID
     chunk: str
     similarity: float
+
+class MessageBase(BaseModel):
+    query: str
+    response: Optional[str] = None
+    created_at: datetime
+    response_at: Optional[datetime] = None
+
+class MessageResponse(MessageBase):
+    id: UUID
+    conversation_id: UUID

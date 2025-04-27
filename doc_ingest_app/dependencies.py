@@ -1,11 +1,11 @@
-from typing import Annotated
+from typing import Annotated, List
 from fastapi import Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.engine import URL, create_engine
 from sqlalchemy.orm import Session, joinedload
 from uuid import UUID
 
-from .models.sql_models import Conversation, Organization, User
+from .models.sql_models import Conversation, Document, Organization, User
 
 
 url = URL.create(
@@ -50,6 +50,40 @@ async def get_conversation(conversation_id: UUID):
         if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found")
         return conversation
+
+async def validate_document_ids(
+    document_ids: List[UUID],
+    conversation: Conversation,
+    session: Session
+):
+    """
+    Validates the provided document IDs:
+    - Ensures no duplicate document IDs are added to the conversation.
+    - Ensures the documents exist and are associated with the user or organization.
+    """
+    existing_document_ids = set(conversation.document_ids)
+    new_document_ids = set(document_ids)
+    duplicate_ids = existing_document_ids.intersection(new_document_ids)
+
+    if duplicate_ids:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Documents already in conversation, ids: {duplicate_ids}"
+        )
+
+    for doc_id in document_ids:
+        document = session.scalar(
+            select(Document).where(
+                Document.id == doc_id,
+                (Document.user_id == conversation.user_id) |
+                (Document.organization_id == conversation.user.organization_id)
+            )
+        )
+        if not document:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Document with id {doc_id} not found, or not associated with the user or organization"
+            )
 
 
 SessionDep = Annotated[Session, Depends(get_session)]

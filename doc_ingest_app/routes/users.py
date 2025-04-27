@@ -5,13 +5,44 @@ from typing import Annotated, List
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 
-from ..models.sql_models import Organization, User
-from ..models.api_models import UserCreate, UserResponse, UserUpdate
+from ..models.sql_models import Document, Organization, User
+from ..models.api_models import FilesResponse, UserCreate, UserResponse, UserUpdate
 from ..dependencies import get_user, SessionDep
 
 router = APIRouter(
     prefix="/users",
     tags=["Users"])
+
+@router.get("/")
+async def get_all_users(session: SessionDep) -> List[UserResponse]:
+    users = session.scalars(
+        select(User)
+    ).all()
+    return users
+
+@router.get("/{user_id}")
+async def get_user_by_id(user: Annotated[User, Depends(get_user)], session: SessionDep) -> UserResponse:
+    return user
+
+@router.get("/{user_id}/getFiles")
+async def get_user_files(existing_user: Annotated[User, Depends(get_user)], session: SessionDep, include_org: bool = False) -> List[FilesResponse]:
+    """
+    Get all files associated with a user.
+    If include_org is True, also include files from the user's organization.
+    """
+    if include_org:
+        files = session.scalars(
+            select(Document).where(
+                (Document.user_id == existing_user.id) | 
+                (Document.organization_id == existing_user.organization_id)
+            )
+        ).all()
+    else:
+        files = session.scalars(
+            select(Document).where(Document.user_id == existing_user.id)
+        ).all()
+    
+    return files
 
 @router.post("/create", status_code=status.HTTP_201_CREATED)
 async def create_user(user: UserCreate, session: SessionDep) -> UserResponse:
@@ -39,10 +70,6 @@ async def create_user(user: UserCreate, session: SessionDep) -> UserResponse:
     session.commit()
     return new_user
 
-@router.get("/{user_id}")
-async def get_user_by_id(user: Annotated[User, Depends(get_user)], session: SessionDep) -> UserResponse:
-    return user
-
 @router.put("/{user_id}", status_code=status.HTTP_200_OK)
 async def update_user(existing_user: Annotated[User, Depends(get_user)], user_data: UserUpdate, session: SessionDep) -> UserResponse:
     if user_data.username:
@@ -55,9 +82,10 @@ async def update_user(existing_user: Annotated[User, Depends(get_user)], user_da
     session.commit() 
     return existing_user
 
-@router.get("/")
-async def get_all_users(session: SessionDep) -> List[UserResponse]:
-    users = session.scalars(
-        select(User)
-    ).all()
-    return users
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(existing_user: Annotated[User, Depends(get_user)], session: SessionDep) -> None:
+    session.delete(existing_user)
+    session.commit()
+    return None
+

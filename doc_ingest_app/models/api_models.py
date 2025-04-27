@@ -51,5 +51,10 @@ class SearchResponse(BaseModel):
     chunk: str
     similarity: float
 
+class FilesResponse(BaseModel):
+    id: UUID
+    file_name: str
+    user_id: UUID | None
+    organization_id: UUID | None
 
 

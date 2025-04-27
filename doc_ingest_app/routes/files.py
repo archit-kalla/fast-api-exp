@@ -1,5 +1,6 @@
 import uuid
-from fastapi import APIRouter, FastAPI, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from uuid import UUID
 from boto3.session import Session as BotoSession
@@ -74,3 +75,47 @@ async def upload_file(owner_id: UUID, owner_type: OwnershipType, session: Sessio
 
     task = proccess_file.delay(file.filename, owner_id, owner_type, file_id)
     return {"filename": file.filename, "status": task.status, "task_id": task.id}
+
+@router.get("/{file_id}/download")
+async def download_file(file_id: UUID, session: SessionDep)-> FileResponse:
+    '''
+    Downloads file from S3 bucket.
+    '''
+    # Check if the file exists in the database
+    file = session.scalar(select(Document).where(Document.id == file_id))
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+    try:
+        # Download the file from S3
+        s3_client.download_file(
+            Bucket=S3_BUCKET_NAME,
+            Key=str(file_id),
+            Filename=file.file_name  # Save to a local file
+        )
+    except (BotoCoreError, ClientError) as e:
+        raise HTTPException(status_code=500, detail=f"Failed to download file from S3: {str(e)}")
+    # Return the file as a response
+    return FileResponse(
+        path=file.file_name,
+        filename=file.file_name
+    )
+
+@router.delete("/{file_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_file(file_id: UUID, session: SessionDep):
+    '''
+    Deletes file from S3 bucket and removes record from database.
+    '''
+    # Check if the file exists in the database
+    file = session.scalar(select(Document).where(Document.id == file_id))
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    try:
+        # Delete the file from S3
+        s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=str(file_id))
+    except (BotoCoreError, ClientError) as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete file from S3: {str(e)}")
+
+    session.delete(file)
+    session.commit()
+    return {"message": "File deleted successfully"}

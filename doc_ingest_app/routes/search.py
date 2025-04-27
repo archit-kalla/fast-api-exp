@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from ..models.sql_models import Organization, User, Document, Chunks
 from ..models.api_models import SearchResponse
-from ..dependencies import get_user, SessionDep
+from ..dependencies import get_user, SessionDep, UserDep
 
 router = APIRouter(
     prefix="/search",
@@ -17,7 +17,7 @@ embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
 #run vector search to get the most similar chunks on users documents including documents from the organization
 @router.get("/{user_id}")
-async def search(user: Annotated[User, Depends(get_user)], session: SessionDep, query: str)-> List[SearchResponse]:
+async def search(user: UserDep, session: SessionDep, query: str)-> List[SearchResponse]:
     #get user documents
     user_documents = session.scalars(
         select(Document).where(Document.user_id == user.id)

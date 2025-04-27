@@ -5,7 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .scripts.create_db_schema import create_tables, drop_tables
 from .middleware.error_handler import ErrorHandlingMiddleware
-from .routes import organizations, users, search, tasks, files
+from .routes import organizations, users, search, tasks, files, conversations
 
 app = FastAPI()
 app.include_router(organizations.router)
@@ -13,6 +13,7 @@ app.include_router(users.router)
 app.include_router(search.router)
 app.include_router(tasks.router)
 app.include_router(files.router)
+app.include_router(conversations.router)
 # app.add_middleware(ErrorHandlingMiddleware)
 
 @app.exception_handler(SQLAlchemyError)

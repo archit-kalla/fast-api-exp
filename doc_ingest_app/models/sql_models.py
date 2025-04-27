@@ -3,6 +3,7 @@ from sqlalchemy import ForeignKey, String, types
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from pgvector.sqlalchemy import Vector
 from uuid import UUID
+from datetime import datetime, timezone
 
 class Base(DeclarativeBase):
     pass
@@ -28,8 +29,26 @@ class Conversation(Base):
     id: Mapped[UUID] = mapped_column(types.UUID, primary_key=True)
     user_id: Mapped[UUID] = mapped_column(types.UUID, ForeignKey("user_account.id"))
     user: Mapped["User"] = relationship(back_populates="conversations")
+    messages: Mapped[List["Message"]] = relationship(
+        back_populates="conversation", cascade="all, delete-orphan"
+    )
+    created_at: Mapped[datetime] = mapped_column(types.DateTime, default=datetime.now(timezone.utc))
+    document_ids: Mapped[List[UUID]] = mapped_column(types.ARRAY(types.UUID), nullable=True)
+    title: Mapped[Optional[str]] = mapped_column(String(128))
     def __repr__(self) -> str:
         return f"Conversation(id={self.id!r})"
+
+class Message(Base):
+    __tablename__ = "message"
+    id: Mapped[UUID] = mapped_column(types.UUID, primary_key=True)
+    conversation_id: Mapped[UUID] = mapped_column(types.UUID, ForeignKey("conversation.id"))
+    conversation: Mapped["Conversation"] = relationship(back_populates="messages")
+    query: Mapped[str]
+    response: Mapped[Optional[str]]
+    created_at: Mapped[datetime] = mapped_column(types.DateTime, default=datetime.now(timezone.utc))
+    response_at: Mapped[Optional[datetime]] = mapped_column(types.DateTime)
+    def __repr__(self) -> str:
+        return f"Message(id={self.id!r}, content={self.content!r})"
 
 class Document(Base):
     __tablename__ = "document"

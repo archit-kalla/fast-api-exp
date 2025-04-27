@@ -103,7 +103,7 @@ def proccess_file(file_name: str, owner_id: UUID, owner_type: OwnershipType, fil
                 embedding = embedding_model.encode(chunk).tolist()  # Convert to list for JSON serialization
                 # Create a new chunk object
                 new_chunk = Chunks(
-                    id=str(uuid.uuid4()),
+                    id=uuid.uuid4(),
                     chunk=chunk,
                     embedding=embedding
                 )

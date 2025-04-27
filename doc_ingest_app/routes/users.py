@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from ..models.sql_models import Document, Organization, User
 from ..models.api_models import FilesResponse, UserCreate, UserResponse, UserUpdate
-from ..dependencies import get_user, SessionDep
+from ..dependencies import get_user, SessionDep, UserDep
 
 router = APIRouter(
     prefix="/users",
@@ -21,11 +21,14 @@ async def get_all_users(session: SessionDep) -> List[UserResponse]:
     return users
 
 @router.get("/{user_id}")
-async def get_user_by_id(user: Annotated[User, Depends(get_user)], session: SessionDep) -> UserResponse:
+async def get_user_by_id(user: UserDep) -> UserResponse:
     return user
 
 @router.get("/{user_id}/getFiles")
-async def get_user_files(existing_user: Annotated[User, Depends(get_user)], session: SessionDep, include_org: bool = False) -> List[FilesResponse]:
+async def get_user_files(existing_user: UserDep, 
+                         session: SessionDep, 
+                         include_org: bool = False
+                         ) -> List[FilesResponse]:
     """
     Get all files associated with a user.
     If include_org is True, also include files from the user's organization.
@@ -63,28 +66,33 @@ async def create_user(user: UserCreate, session: SessionDep) -> UserResponse:
     new_user = User(
         username=user.username,
         email=user.email,
-        id=str(uuid.uuid4()),
+        id=uuid.uuid4(),
         organization_id=user.organization_id
     )
     session.add(new_user)
     session.commit()
+    session.refresh(new_user)
     return new_user
 
 @router.put("/{user_id}", status_code=status.HTTP_200_OK)
-async def update_user(existing_user: Annotated[User, Depends(get_user)], user_data: UserUpdate, session: SessionDep) -> UserResponse:
+async def update_user(existing_user: UserDep, 
+                      user_data: UserUpdate, 
+                      session: SessionDep) -> UserResponse:
     if user_data.username:
         existing_user.username = user_data.username
     if user_data.email:
         existing_user.email = user_data.email
     if user_data.organization_id:
         existing_user.organization_id = user_data.organization_id
-    session.refresh(existing_user)
+    
     session.commit() 
+    session.refresh(existing_user)
     return existing_user
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(existing_user: Annotated[User, Depends(get_user)], session: SessionDep) -> None:
+async def delete_user(existing_user: UserDep, 
+                      session: SessionDep) -> None:
     session.delete(existing_user)
     session.commit()
     return None

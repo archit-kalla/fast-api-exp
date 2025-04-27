@@ -33,7 +33,7 @@ class Conversation(Base):
         back_populates="conversation", cascade="all, delete-orphan"
     )
     created_at: Mapped[datetime] = mapped_column(types.DateTime, default=datetime.now(timezone.utc))
-    document_ids: Mapped[List[UUID]] = mapped_column(types.ARRAY(types.UUID), nullable=True)
+    document_ids: Mapped[Optional[List[UUID]]] = mapped_column(types.ARRAY(types.UUID))
     title: Mapped[Optional[str]] = mapped_column(String(128))
     def __repr__(self) -> str:
         return f"Conversation(id={self.id!r})"
@@ -53,8 +53,8 @@ class Message(Base):
 class Document(Base):
     __tablename__ = "document"
     id: Mapped[UUID] = mapped_column(types.UUID, primary_key=True)
-    user_id: Mapped[Optional[UUID]] = mapped_column(types.UUID, ForeignKey("user_account.id"), nullable=True)
-    organization_id: Mapped[Optional[UUID]] = mapped_column(types.UUID, ForeignKey("organization.id"), nullable=True)
+    user_id: Mapped[Optional[UUID]] = mapped_column(types.UUID, ForeignKey("user_account.id"))
+    organization_id: Mapped[Optional[UUID]] = mapped_column(types.UUID, ForeignKey("organization.id"))
     user: Mapped[Optional["User"]] = relationship(back_populates="documents")
     organization: Mapped[Optional["Organization"]] = relationship(back_populates="documents")
     file_name: Mapped[str]

@@ -7,8 +7,8 @@ import uuid
 
 
 from ..dependencies import SessionDep, UserDep, ConversationDep
-from ..models.sql_models import User, Conversation, Message
-from ..models.api_models import ConversationEntry, ConversationEntryResponse, ConversationResponse
+from ..models.sql_models import Document, User, Conversation, Message
+from ..models.api_models import ConversationEntryCreate, ConversationEntryResponse, ConversationResponse, ConversationUpdate, ConversationUpdateResponse
 
 router = APIRouter(
     prefix="/conversations",
@@ -18,7 +18,7 @@ router = APIRouter(
 @router.post("/{user_id}/entry")
 async def start_conversation(user: UserDep, 
                              session: SessionDep, 
-                             conversation_entry: ConversationEntry
+                             conversation_entry: ConversationEntryCreate
                              ) -> ConversationEntryResponse:
     # creates a new conversation and sends first message
     session.merge(user)
@@ -47,19 +47,38 @@ async def start_conversation(user: UserDep,
         document_ids=new_conversation.document_ids
     )
 
-@router.put("/{conversation_id}/documents")
-async def add_documents_to_conversation(conversation: UserDep,
+@router.put("/{conversation_id}")
+async def update_conversation(conversation: ConversationDep,
                                         session: SessionDep,
-                                        document_ids: List[UUID]
-                                        )-> ConversationEntryResponse:
+                                        conversation_update: ConversationUpdate,
+                                        )-> ConversationUpdateResponse:
     """
     add_documents_to_conversation
     """
     # Check if the conversation exists
     conversation = session.merge(conversation)
 
+    #check if the documents are already in the conversation
+    if conversation.document_ids:
+        doc_ids = set(conversation.document_ids)
+        new_doc_ids = set(conversation_update.document_ids)
+        same_doc_ids = doc_ids.intersection(new_doc_ids)
+        if same_doc_ids:
+            raise HTTPException(status_code=400, detail="Documents already in conversation, ids: {same_doc_ids}")
+        # Check if the new document IDs exist
+        for doc_id in conversation_update.document_ids: 
+            if not session.scalar(
+                select(Document).where(Document.id == doc_id and (
+                    Document.user_id == conversation.user_id or 
+                    Document.organization_id == conversation.user.organization_id
+                    ))
+                ):
+                raise HTTPException(status_code=404, detail=f"Document with id {doc_id} not found, or not associated with the user or organization")
     # Update the conversation with new document IDs
-    conversation.document_ids = document_ids
+    conversation.document_ids = conversation_update.document_ids
+    #update conversation title if provided
+    if conversation_update.title:
+        conversation.title = conversation_update.title  
     session.commit()
     session.refresh(conversation)
     return conversation
@@ -91,17 +110,21 @@ async def get_conversation(conversation: ConversationDep,
     return ConversationResponse(
         id=conversation.id,
         created_at=conversation.created_at,
-        messages=messages
+        title=conversation.title,
+        messages=messages,
+        document_ids=conversation.document_ids
     )
 
 
 @router.get("/{user_id}/history")
-async def get_conversation_history(user_id: str, session: SessionDep):
+async def get_conversation_history(user_id: str, session: SessionDep) -> List[ConversationResponse]:
     """
     get_conversation_history
     """
-    # Fetch all conversations associated with the user
+    # Fetch all conversations associated with the user without
     conversations = session.scalars(
-        select(Conversation).where(Conversation.user_id == user_id)
+        select(Conversation.id,
+               Conversation.created_at,
+               Conversation.title).where(Conversation.user_id == user_id)
     ).all()
     return conversations

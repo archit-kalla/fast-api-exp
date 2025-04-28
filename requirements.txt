@@ -1,4 +1,4 @@
-fastapi
+fastapi[standard]
 pydantic
 sqlalchemy
 psycopg2-binary
@@ -6,3 +6,5 @@ pgvector
 celery
 redis
 uvicorn
+sentence-transformers
+awscli-local[ver1]

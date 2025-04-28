@@ -6,7 +6,7 @@ from uuid import UUID
 import uuid
 
 
-from ..dependencies import SessionDep, UserDep, ConversationDep, validate_document_ids
+from ..dependencies import SessionDep, UserDep, ConversationDep, validate_document_ids_for_user
 from ..models.sql_models import Document, User, Conversation, Message
 from ..models.api_models import ConversationEntryCreate, ConversationEntryResponse, ConversationResponse, ConversationUpdate, ConversationUpdateResponse, MessageResponse
 
@@ -23,12 +23,21 @@ async def start_conversation(user: UserDep,
     # creates a new conversation and sends first message
     session.merge(user)
     conversation_id = uuid.uuid4()
+
+
     new_conversation = Conversation(
         id=conversation_id,
         user_id=user.id,
-        created_at= datetime.now(timezone.utc),
-        document_ids=conversation_entry.document_ids,
+        created_at= datetime.now(timezone.utc)
     )
+    if conversation_entry.document_ids:
+        await validate_document_ids_for_user(
+            document_ids=conversation_entry.document_ids,
+            user_id=user.id,
+            organization_id=user.organization_id,
+            session=session
+        )
+        new_conversation.document_ids = conversation_entry.document_ids
     session.add(new_conversation)
 
     new_message = Message(
@@ -61,12 +70,14 @@ async def add_message_to_conversation(conversation: ConversationDep,
     
     # add document ids to conversation
     if message_create.document_ids:
-        await validate_document_ids(
+        await validate_document_ids_for_user(
             document_ids=message_create.document_ids,
-            conversation=conversation,
+            user_id=conversation.user.id,
+            organization_id=conversation.user.organization_id,
             session=session
         )
         conversation.document_ids = message_create.document_ids
+
 
     #add message to conversation
     new_message = Message(
@@ -94,9 +105,10 @@ async def update_conversation(conversation: ConversationDep,
 
     #check if the documents are already in the conversation
     if conversation_update.document_ids:
-        await validate_document_ids(
+        await validate_document_ids_for_user(
             document_ids=conversation_update.document_ids,
-            conversation=conversation,
+            user_id=conversation.user_id,
+            organization_id=conversation.user.organization_id,
             session=session
         )
         conversation.document_ids = conversation_update.document_ids

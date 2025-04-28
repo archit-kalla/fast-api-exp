@@ -1,4 +1,4 @@
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 from fastapi import Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.engine import URL, create_engine
@@ -51,32 +51,23 @@ async def get_conversation(conversation_id: UUID):
             raise HTTPException(status_code=404, detail="Conversation not found")
         return conversation
 
-async def validate_document_ids(
+async def validate_document_ids_for_user(
     document_ids: List[UUID],
-    conversation: Conversation,
+    user_id: UUID,
+    organization_id: Optional[UUID],
     session: Session
 ):
     """
     Validates the provided document IDs:
-    - Ensures no duplicate document IDs are added to the conversation.
-    - Ensures the documents exist and are associated with the user or organization.
+    - Ensures the documents exist.
+    - Ensures the documents are associated with the user or their organization.
     """
-    existing_document_ids = set(conversation.document_ids)
-    new_document_ids = set(document_ids)
-    duplicate_ids = existing_document_ids.intersection(new_document_ids)
-
-    if duplicate_ids:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Documents already in conversation, ids: {duplicate_ids}"
-        )
-
     for doc_id in document_ids:
         document = session.scalar(
             select(Document).where(
                 Document.id == doc_id,
-                (Document.user_id == conversation.user_id) |
-                (Document.organization_id == conversation.user.organization_id)
+                (Document.user_id == user_id) |
+                (Document.organization_id == organization_id)
             )
         )
         if not document:

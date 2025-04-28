@@ -49,12 +49,6 @@ async def get_user_files(existing_user: UserDep,
 
 @router.post("/create", status_code=status.HTTP_201_CREATED)
 async def create_user(user: UserCreate, session: SessionDep) -> UserResponse:
-    # Check if user already exists
-    existing_user = session.scalar(
-        select(User).where(User.username == user.username or User.email == user.email)
-    )
-    if existing_user:
-        raise HTTPException(status_code=400, detail="User already exists")
     
     # Check if organization exists
     if user.organization_id:
@@ -78,6 +72,8 @@ async def create_user(user: UserCreate, session: SessionDep) -> UserResponse:
 async def update_user(existing_user: UserDep, 
                       user_data: UserUpdate, 
                       session: SessionDep) -> UserResponse:
+    existing_user = session.merge(existing_user)
+
     if user_data.username:
         existing_user.username = user_data.username
     if user_data.email:

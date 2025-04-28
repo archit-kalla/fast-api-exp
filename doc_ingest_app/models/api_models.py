@@ -17,9 +17,9 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
-    username: Optional[str]
-    email: Optional[str]
-    organization_id: Optional[UUID]
+    username: Optional[str] = None
+    email: Optional[str] = None 
+    organization_id: Optional[UUID] = None
 
 
 class UserResponse(UserBase):
@@ -36,7 +36,6 @@ class OrganizationCreate(OrganizationBase):
 
 
 class OrganizationUpdate(BaseModel):
-    id: UUID
     name: Optional[str]
 
 

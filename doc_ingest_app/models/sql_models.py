@@ -11,8 +11,8 @@ class Base(DeclarativeBase):
 class User(Base):
     __tablename__ = "user_account"
     id: Mapped[UUID] = mapped_column(types.UUID, primary_key=True)
-    username: Mapped[str] = mapped_column(String(30))
-    email: Mapped[str]
+    username: Mapped[str] = mapped_column(unique=True)
+    email: Mapped[str] = mapped_column(unique=True)
     organization_id: Mapped[Optional[UUID]] = mapped_column(types.UUID, ForeignKey("organization.id"))
     organization: Mapped[Optional["Organization"]] = relationship(back_populates="users")  # Add this line
     conversations: Mapped[List["Conversation"]] = relationship(
@@ -80,7 +80,7 @@ class Organization(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True,)
     name: Mapped[str]
     users: Mapped[List["User"]] = relationship(
-        back_populates="organization", cascade="all, delete-orphan"
+        back_populates="organization", cascade="all"
     )
     documents: Mapped[List["Document"]] = relationship(
         back_populates="organization", cascade="all, delete-orphan"

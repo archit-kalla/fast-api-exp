@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
 from .scripts.create_db_schema import create_tables, drop_tables
 from .middleware.error_handler import ErrorHandlingMiddleware
@@ -39,7 +39,19 @@ async def generic_exception_handler(request, exc):
         content={"detail": "An unexpected error occurred.",
                  "error": str(exc)},
     )
-    
+
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request, exc):
+    if hasattr(request.state, "session"):
+        db_session = request.state.session
+        if db_session:
+            db_session.rollback()
+    return JSONResponse(
+        status_code=400,
+        content={"detail": "Integrity error occurred.",
+                 "error": str(exc.orig)},
+    )
+
 @app.on_event("startup")
 def on_startup():
     create_tables()

@@ -11,11 +11,11 @@ from botocore.exceptions import BotoCoreError, ClientError
 from boto3.session import Session as BotoSession
 
 from uuid import UUID
+from datetime import datetime, timezone
 
 from doc_ingest_app.models.api_models import OwnershipType
 
-from .models.sql_models import Organization, User, Document, Chunks, Base
-import os
+from .models.sql_models import Organization, User, Document, Chunks, Message, Conversation
 
 celery = Celery(
     "doc_ingest_app.tasks",
@@ -122,3 +122,31 @@ def proccess_file(file_name: str, owner_id: UUID, owner_type: OwnershipType, fil
 def fake_task_remote():
     time.sleep(20)
     return "Fake task completed"
+
+@celery.task
+def respond_to_message(message_id: UUID, conversation_id: UUID, response: str):
+    """
+    Respond to a message in a conversation.
+    """
+    with Session(engine) as session:
+        with session.begin():
+            # Ensure the message_id is in the database
+            message = session.scalar(
+                select(Message).where(Message.id == message_id)
+            )
+            if not message:
+                raise FileNotFoundError(f"Message {message_id} not found in database")
+            
+            # Ensure the conversation_id is in the database
+            conversation = session.scalar(
+                select(Conversation).where(Conversation.id == conversation_id)
+            )
+            if not conversation:
+                raise FileNotFoundError(f"Conversation {conversation_id} not found in database")
+            
+            # Update the message with the response
+            message.response = response
+            message.response_at = datetime.now(timezone.utc)
+            session.add(message)
+            session.commit()
+            session.refresh(message)

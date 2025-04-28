@@ -50,6 +50,9 @@ async def start_conversation(user: UserDep,
     session.commit()
     session.refresh(new_conversation)
     session.refresh(new_message)
+
+    # send a celery task to process the message and produce a response
+
     return ConversationEntryResponse(
         id=new_conversation.id,
         created_at=new_message.created_at,
@@ -89,6 +92,9 @@ async def add_message_to_conversation(conversation: ConversationDep,
     session.add(new_message)
     session.commit()
     session.refresh(new_message)
+
+    # send a celery task to process the message and produce a response
+
     return new_message
 
 

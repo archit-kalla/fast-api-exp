@@ -21,14 +21,13 @@ async def start_conversation(user: UserDep,
                              conversation_entry: ConversationEntryCreate
                              ) -> ConversationEntryResponse:
     # creates a new conversation and sends first message
-    session.merge(user)
+    await session.merge(user)
     conversation_id = uuid.uuid4()
-
 
     new_conversation = Conversation(
         id=conversation_id,
         user_id=user.id,
-        created_at= datetime.now(timezone.utc)
+        created_at=datetime.now(timezone.utc)
     )
     if conversation_entry.document_ids:
         await validate_document_ids_for_user(
@@ -47,11 +46,9 @@ async def start_conversation(user: UserDep,
         created_at=datetime.now(timezone.utc),
     )
     session.add(new_message)
-    session.commit()
-    session.refresh(new_conversation)
-    session.refresh(new_message)
-
-    # send a celery task to process the message and produce a response
+    await session.commit()
+    await session.refresh(new_conversation)
+    await session.refresh(new_message)
 
     return ConversationEntryResponse(
         id=new_conversation.id,
@@ -61,17 +58,10 @@ async def start_conversation(user: UserDep,
 
 @router.post("/{conversation_id}/message")
 async def add_message_to_conversation(conversation: ConversationDep,
-                                        session: SessionDep,
-                                        message_create: ConversationEntryCreate,
-                                        ) -> MessageResponse:
-    
-
-    conversation = session.merge(conversation)
-    # check if user is the owner of the conversation
-    # if conversation.user_id != [somethinghere].user_id:
-    #     raise HTTPException(status_code=403, detail="User not authorized to add message to this conversation")
-    
-    # add document ids to conversation
+                                      session: SessionDep,
+                                      message_create: ConversationEntryCreate,
+                                      ) -> MessageResponse:
+    conversation = await session.merge(conversation)
     if message_create.document_ids:
         await validate_document_ids_for_user(
             document_ids=message_create.document_ids,
@@ -81,8 +71,6 @@ async def add_message_to_conversation(conversation: ConversationDep,
         )
         conversation.document_ids = message_create.document_ids
 
-
-    #add message to conversation
     new_message = Message(
         id=uuid.uuid4(),
         conversation_id=conversation.id,
@@ -90,26 +78,23 @@ async def add_message_to_conversation(conversation: ConversationDep,
         created_at=datetime.now(timezone.utc)
     )   
     session.add(new_message)
-    session.commit()
-    session.refresh(new_message)
-
-    # send a celery task to process the message and produce a response
-
+    await session.commit()
+    await session.refresh(new_message)
     return new_message
 
 
 @router.put("/{conversation_id}")
 async def update_conversation(conversation: ConversationDep,
-                                        session: SessionDep,
-                                        conversation_update: ConversationUpdate,
-                                        )-> ConversationUpdateResponse:
+                              session: SessionDep,
+                              conversation_update: ConversationUpdate,
+                              ) -> ConversationUpdateResponse:
     """
     add_documents_to_conversation
     """
     # Check if the conversation exists
-    conversation = session.merge(conversation)
+    conversation = await session.merge(conversation)
 
-    #check if the documents are already in the conversation
+    # check if the documents are already in the conversation
     if conversation_update.document_ids:
         await validate_document_ids_for_user(
             document_ids=conversation_update.document_ids,
@@ -119,11 +104,11 @@ async def update_conversation(conversation: ConversationDep,
         )
         conversation.document_ids = conversation_update.document_ids
 
-    #update conversation title if provided
+    # update conversation title if provided
     if conversation_update.title:
         conversation.title = conversation_update.title  
-    session.commit()
-    session.refresh(conversation)
+    await session.commit()
+    await session.refresh(conversation)
     return conversation
 
 @router.get("/{conversation_id}")
@@ -133,13 +118,14 @@ async def get_conversation(conversation: ConversationDep,
     get_conversation
     """
     # Check if the conversation exists
-    conversation = session.merge(conversation)
+    conversation = await session.merge(conversation)
 
     # Fetch messages associated with the conversation
-    messages = session.scalars(
+    messages = await session.scalars(
         select(Message).where(Message.conversation_id == conversation.id)
-    ).all()
-    #convert messages to MessageResponse
+    )
+    messages = messages.all()
+    # convert messages to MessageResponse
     messages = [
         {
             "id": message.id,
@@ -164,10 +150,10 @@ async def get_conversation_history(user_id: str, session: SessionDep) -> List[Co
     """
     get_conversation_history
     """
-    # Fetch all conversations associated with the user without
-    conversations = session.scalars(
+    # Fetch all conversations associated with the user
+    conversations = await session.scalars(
         select(Conversation.id,
                Conversation.created_at,
                Conversation.title).where(Conversation.user_id == user_id)
-    ).all()
-    return conversations
+    )
+    return conversations.all()

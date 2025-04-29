@@ -1,6 +1,6 @@
 fastapi[standard]
 pydantic
-sqlalchemy
+sqlalchemy[asyncio]
 psycopg2-binary
 pgvector
 celery
@@ -8,3 +8,5 @@ redis
 uvicorn
 sentence-transformers
 awscli-local[ver1]
+asyncpg
+pytest-asyncio

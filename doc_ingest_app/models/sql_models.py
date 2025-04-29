@@ -1,11 +1,12 @@
 from typing import List, Optional
 from sqlalchemy import ForeignKey, String, types
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.ext.asyncio import AsyncAttrs
 from pgvector.sqlalchemy import Vector
 from uuid import UUID
 from datetime import datetime, timezone
 
-class Base(DeclarativeBase):
+class Base(AsyncAttrs, DeclarativeBase):
     pass
 
 class User(Base):
@@ -13,7 +14,7 @@ class User(Base):
     id: Mapped[UUID] = mapped_column(types.UUID, primary_key=True)
     username: Mapped[str] = mapped_column(unique=True)
     email: Mapped[str] = mapped_column(unique=True)
-    organization_id: Mapped[Optional[UUID]] = mapped_column(types.UUID, ForeignKey("organization.id"))
+    organization_id: Mapped[Optional[UUID]] = mapped_column(types.UUID, ForeignKey("organization.id"), nullable=True)
     organization: Mapped[Optional["Organization"]] = relationship(back_populates="users")  # Add this line
     conversations: Mapped[List["Conversation"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
